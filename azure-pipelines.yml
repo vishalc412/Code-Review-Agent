@@ -1,0 +1,92 @@
+trigger:
+  branches:
+    exclude:
+      - main
+      - master
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: code-review-agents
+  - name: PLATFORM
+    value: azure_devops
+  - name: LLM_PROVIDER
+    value: anthropic
+  - name: PYTHON_VERSION
+    value: '3.11'
+
+stages:
+  - stage: CodeReview
+    displayName: 'AI Code Review'
+    jobs:
+      - job: ReviewAgent
+        displayName: 'Run Code Review Agent'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+            displayName: 'Use Python $(PYTHON_VERSION)'
+
+          - script: |
+              pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - script: |
+              python -m agents.review_agent \
+                --pr-id $(System.PullRequest.PullRequestId)
+            displayName: 'Run Review Agent'
+            env:
+              AZURE_DEVOPS_PAT: $(AZURE_DEVOPS_PAT)
+              AZURE_DEVOPS_ORGANIZATION: $(System.TeamFoundationCollectionUri)
+              AZURE_DEVOPS_PROJECT: $(System.TeamProject)
+              AZURE_DEVOPS_REPOSITORY_ID: $(Build.Repository.ID)
+              ANTHROPIC_API_KEY: $(ANTHROPIC_API_KEY)
+              REVIEW_ENABLED: true
+              LOG_LEVEL: INFO
+
+  - stage: CodeFix
+    displayName: 'AI Code Fix'
+    dependsOn: CodeReview
+    condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: FixAgent
+        displayName: 'Run Fix Agent'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+            displayName: 'Use Python $(PYTHON_VERSION)'
+
+          - script: |
+              pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - script: |
+              python -m agents.fix_agent \
+                --pr-id $(System.PullRequest.PullRequestId)
+            displayName: 'Run Fix Agent'
+            env:
+              AZURE_DEVOPS_PAT: $(AZURE_DEVOPS_PAT)
+              AZURE_DEVOPS_ORGANIZATION: $(System.TeamFoundationCollectionUri)
+              AZURE_DEVOPS_PROJECT: $(System.TeamProject)
+              AZURE_DEVOPS_REPOSITORY_ID: $(Build.Repository.ID)
+              ANTHROPIC_API_KEY: $(ANTHROPIC_API_KEY)
+              FIX_ENABLED: true
+              FIX_AUTO_CREATE_PR: true
+              LOG_LEVEL: INFO

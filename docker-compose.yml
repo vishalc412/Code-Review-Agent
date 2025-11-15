@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  review-agent:
+    build: .
+    container_name: code-review-agent
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    command: python -m agents.review_agent --pr-id ${PR_ID}
+
+  fix-agent:
+    build: .
+    container_name: code-fix-agent
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    command: python -m agents.fix_agent --pr-id ${PR_ID}

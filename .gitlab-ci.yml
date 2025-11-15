@@ -1,0 +1,49 @@
+stages:
+  - review
+  - fix
+
+variables:
+  PLATFORM: gitlab
+  LLM_PROVIDER: anthropic
+  ANTHROPIC_MODEL: claude-sonnet-4-5-20250929
+  REVIEW_ENABLED: "true"
+  FIX_ENABLED: "true"
+  LOG_LEVEL: INFO
+
+.python_setup:
+  image: python:3.11
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+
+code_review:
+  extends: .python_setup
+  stage: review
+  only:
+    - merge_requests
+  script:
+    - |
+      python -m agents.review_agent \
+        --pr-id $CI_MERGE_REQUEST_IID
+  variables:
+    GITLAB_TOKEN: $GITLAB_ACCESS_TOKEN
+    GITLAB_URL: $CI_SERVER_URL
+    GITLAB_PROJECT_ID: $CI_PROJECT_ID
+    ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
+
+code_fix:
+  extends: .python_setup
+  stage: fix
+  only:
+    - merge_requests
+  when: manual
+  script:
+    - |
+      python -m agents.fix_agent \
+        --pr-id $CI_MERGE_REQUEST_IID
+  variables:
+    GITLAB_TOKEN: $GITLAB_ACCESS_TOKEN
+    GITLAB_URL: $CI_SERVER_URL
+    GITLAB_PROJECT_ID: $CI_PROJECT_ID
+    ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
+    FIX_AUTO_CREATE_PR: "true"
