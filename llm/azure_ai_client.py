@@ -1,15 +1,20 @@
 """Azure OpenAI client for code review."""
 
-import json
 from typing import List
 from openai import AzureOpenAI
 from .base import BaseLLMClient, ReviewResult
+from .prompts import (
+    build_review_prompt,
+    build_fix_prompt,
+    build_analysis_prompt,
+    parse_review_response,
+    parse_fix_response,
+    parse_analysis_response
+)
 from parsers.comment_parser import ReviewComment, CommentParser
 from core.logger import get_logger
 from core.exceptions import LLMError
 from core.utils import retry_with_backoff
-
-logger = get_logger(__name__)
 
 
 class AzureAIClient(BaseLLMClient):
@@ -40,20 +45,17 @@ class AzureAIClient(BaseLLMClient):
         depth: str = "standard"
     ) -> ReviewResult:
         """Review code using Azure OpenAI."""
-        prompt = self._build_review_prompt(diff, context, focus, depth)
+        prompt = build_review_prompt(diff, context, focus, depth)
 
         try:
-            self.logger.info(
-                "Sending code review request to Azure OpenAI",
-                deployment=self.deployment
-            )
+            self.logger.info("Sending code review request to Azure OpenAI", deployment=self.deployment)
 
             response = self.client.chat.completions.create(
                 model=self.deployment,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert code reviewer with deep knowledge of software engineering best practices, security, and performance optimization."
+                        "content": "You are an expert code reviewer with deep knowledge of software engineering best practices."
                     },
                     {"role": "user", "content": prompt}
                 ],
@@ -64,14 +66,9 @@ class AzureAIClient(BaseLLMClient):
             response_text = response.choices[0].message.content
             tokens_used = response.usage.total_tokens
 
-            self.logger.info(
-                "Received response from Azure OpenAI",
-                tokens=tokens_used,
-                deployment=self.deployment
-            )
+            self.logger.info("Received response from Azure OpenAI", tokens=tokens_used)
 
-            # Parse the response
-            comments, summary = self._parse_review_response(response_text)
+            comments, summary = parse_review_response(response_text, self.comment_parser)
 
             return ReviewResult(
                 comments=comments,
@@ -92,14 +89,10 @@ class AzureAIClient(BaseLLMClient):
         file_path: str
     ) -> str:
         """Generate code fix using Azure OpenAI."""
-        prompt = self._build_fix_prompt(file_content, comment, file_path)
+        prompt = build_fix_prompt(file_content, comment, file_path)
 
         try:
-            self.logger.info(
-                "Generating fix with Azure OpenAI",
-                file=file_path,
-                line=comment.line
-            )
+            self.logger.info("Generating fix with Azure OpenAI", file=file_path)
 
             response = self.client.chat.completions.create(
                 model=self.deployment,
@@ -114,10 +107,7 @@ class AzureAIClient(BaseLLMClient):
                 max_tokens=4000
             )
 
-            fixed_content = self._parse_fix_response(
-                response.choices[0].message.content
-            )
-
+            fixed_content = parse_fix_response(response.choices[0].message.content)
             self.logger.info("Generated fix successfully", file=file_path)
             return fixed_content
 
@@ -132,7 +122,7 @@ class AzureAIClient(BaseLLMClient):
         file_contents: dict[str, str]
     ) -> dict:
         """Analyze comments to determine which are fixable."""
-        prompt = self._build_analysis_prompt(comments, file_contents)
+        prompt = build_analysis_prompt(comments, file_contents)
 
         try:
             response = self.client.chat.completions.create(
@@ -148,63 +138,8 @@ class AzureAIClient(BaseLLMClient):
                 max_tokens=2000
             )
 
-            analysis = self._parse_analysis_response(
-                response.choices[0].message.content
-            )
-            return analysis
+            return parse_analysis_response(response.choices[0].message.content)
 
         except Exception as e:
             self.logger.error(f"Failed to analyze comments with Azure OpenAI: {e}")
-            raise LLMError(f"Azure OpenAI API error: {e}")
-
-    def _build_review_prompt(
-        self,
-        diff: str,
-        context: dict,
-        focus: str,
-        depth: str
-    ) -> str:
-        """Build prompt for code review."""
-        # Reuse the same prompt structure as Anthropic client
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._build_review_prompt(diff, context, focus, depth)
-
-    def _build_fix_prompt(
-        self,
-        file_content: str,
-        comment: ReviewComment,
-        file_path: str
-    ) -> str:
-        """Build prompt for generating fix."""
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._build_fix_prompt(file_content, comment, file_path)
-
-    def _build_analysis_prompt(
-        self,
-        comments: List[ReviewComment],
-        file_contents: dict[str, str]
-    ) -> str:
-        """Build prompt for analyzing comments."""
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._build_analysis_prompt(comments, file_contents)
-
-    def _parse_review_response(self, response_text: str) -> tuple[List[ReviewComment], str]:
-        """Parse review response."""
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._parse_review_response(response_text)
-
-    def _parse_fix_response(self, response_text: str) -> str:
-        """Parse fix response."""
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._parse_fix_response(response_text)
-
-    def _parse_analysis_response(self, response_text: str) -> dict:
-        """Parse analysis response."""
-        from .anthropic_client import AnthropicClient
-        temp_client = AnthropicClient("dummy", "dummy")
-        return temp_client._parse_analysis_response(response_text)
+            raise LLMError(f"Claude API error: {e}")

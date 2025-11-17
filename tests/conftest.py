@@ -24,12 +24,12 @@ def mock_settings():
 def sample_diff():
     """Sample diff for testing."""
     return """diff --git a/test.py b/test.py
+index 0000000..1234567 100644
 --- a/test.py
 +++ b/test.py
-@@ -1,1 +1,3 @@
+@@ -1,0 +1,2 @@
 +def hello():
 +    return "world"
-+
 """
 
 
