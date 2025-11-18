@@ -3,6 +3,10 @@ python-dotenv>=1.0.0
 pydantic>=2.5.0
 pydantic-settings>=2.0.0
 
+# API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
 # Platform APIs
 azure-devops>=7.1.0b1
 python-gitlab>=4.4.0

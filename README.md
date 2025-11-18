@@ -2,211 +2,178 @@
 
 AI-powered code review automation for Azure DevOps, GitLab, and GitHub using LLM capabilities (Azure OpenAI or Anthropic Claude).
 
-## Overview
-
-This project provides two Python-based agents that automate code review processes:
-
-1. **Review Agent (Agent 1)**: Analyzes PR code changes and posts review comments directly on the PR
-2. **Fix Agent (Agent 2)**: Reads review comments, implements fixes, and creates a new PR with corrections
-
-## Features
-
-- ✅ **Multi-Platform Support**: Works with GitHub, GitLab, and Azure DevOps
-- ✅ **Multiple LLM Providers**: Supports Anthropic Claude and Azure OpenAI
-- ✅ **Comprehensive Reviews**: Analyzes code for bugs, security, performance, style, and best practices
-- ✅ **Automated Fixes**: Generates and applies fixes based on review comments
-- ✅ **Configurable**: Extensive configuration options for review depth, focus areas, and severity thresholds
-- ✅ **CI/CD Integration**: Ready-to-use workflows for GitHub Actions, GitLab CI, and Azure Pipelines
-- ✅ **Docker Support**: Containerized deployment option
-
-## Quick Start
+## 🚀 Quick Start with Docker
 
 ### Prerequisites
+- Docker 20.10+
+- Docker Compose 2.0+
 
-- Python 3.9 or higher
-- Git
-- API tokens for your platform (GitHub, GitLab, or Azure DevOps)
-- API key for your LLM provider (Anthropic or Azure OpenAI)
+### Setup
 
-### Installation
-
-1. Clone the repository:
+1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/code-review-agents.git
-cd code-review-agents
+git clone <repository-url>
+cd Code-Review-Agent
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Install the package:
-```bash
-pip install -e .
-```
-
-4. Configure environment variables:
+2. **Configure environment**
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your API keys
 ```
 
-5. Validate configuration:
+3. **Start the application**
 ```bash
-python scripts/validate_config.py
+docker-compose up -d
 ```
 
-### Usage
+4. **Access the application**
+- **Web UI**: http://localhost:3000
+- **API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
 
-#### Review Agent
+## 📦 Services
 
-Run code review on a pull request:
+### API Backend (Port 8000)
+FastAPI-based REST API for code review operations.
 
-```bash
-# GitHub
-python -m agents.review_agent --pr-number 123
+**Key Endpoints:**
+- `POST /api/review` - Run code review on a PR
+- `POST /api/fix` - Generate automated fixes
+- `GET /api/config` - View current configuration
+- `GET /health` - Health check
 
-# GitLab
-python -m agents.review_agent --pr-id 456
+### Web UI (Port 3000)
+Clean, modern web interface for easy interaction.
 
-# Azure DevOps
-python -m agents.review_agent --pr-id 789
-```
+**Features:**
+- Submit PRs for review
+- Generate automated fixes
+- View configuration
+- Real-time status updates
 
-#### Fix Agent
+## 🛠️ Development
 
-Generate and apply fixes for review comments:
-
-```bash
-# GitHub
-python -m agents.fix_agent --pr-number 123
-
-# GitLab
-python -m agents.fix_agent --pr-id 456
-
-# Azure DevOps
-python -m agents.fix_agent --pr-id 789
-```
-
-## Configuration
-
-Configuration is managed through environment variables. See `.env.example` for all available options.
-
-### Key Configuration Options
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PLATFORM` | Platform to use (github, gitlab, azure_devops) | github |
-| `LLM_PROVIDER` | LLM provider (anthropic, azure_ai) | anthropic |
-| `REVIEW_DEPTH` | Review depth (quick, standard, deep) | standard |
-| `REVIEW_FOCUS` | Focus area (all, security, performance, style, bugs) | all |
-| `SEVERITY_THRESHOLD` | Minimum severity to report (critical, major, minor, suggestion) | minor |
-| `FIX_AUTO_CREATE_PR` | Auto-create PR with fixes | true |
-
-See [docs/SETUP.md](docs/SETUP.md) for detailed configuration guide.
-
-## CI/CD Integration
-
-### GitHub Actions
-
-The workflow file is already included at `.github/workflows/code-review.yml`.
-
-Configure secrets: `ANTHROPIC_API_KEY` or `AZURE_AI_API_KEY`
-
-### GitLab CI
-
-The pipeline file is already included at `.gitlab-ci.yml`.
-
-Configure variables: `GITLAB_ACCESS_TOKEN`, `ANTHROPIC_API_KEY` or `AZURE_AI_API_KEY`
-
-### Azure Pipelines
-
-The pipeline file is already included at `azure-pipelines.yml`.
-
-Configure variable group `code-review-agents` with required variables.
-
-## Docker
-
-Build and run with Docker:
+### Running Locally
 
 ```bash
-# Build
-docker build -t code-review-agents .
+# Install dependencies
+pip install -r requirements.txt
 
-# Run review agent
-docker run --env-file .env code-review-agents python -m agents.review_agent --pr-id 123
+# Run API
+uvicorn api.main:app --reload --port 8000
 
-# Or use docker-compose
-export PR_ID=123
-docker-compose run review-agent
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    CI/CD Pipeline                        │
-│            (Azure/GitLab/GitHub Actions)                 │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│              Code Review Agent (Agent 1)                 │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  1. Fetch PR Changes                             │   │
-│  │  2. Parse Code Diff                              │   │
-│  │  3. Send to LLM for Analysis                     │   │
-│  │  4. Post Review Comments on PR                   │   │
-│  └─────────────────────────────────────────────────┘   │
-└────────────────────┬────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│           Code Review Fix Agent (Agent 2)                │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  1. Fetch PR Review Comments                     │   │
-│  │  2. Analyze Comments with LLM                    │   │
-│  │  3. Generate Code Fixes                          │   │
-│  │  4. Create New Branch                            │   │
-│  │  5. Apply Fixes and Commit                       │   │
-│  │  6. Create New PR                                │   │
-│  └─────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
-
-## Documentation
-
-- [Setup Guide](docs/SETUP.md) - Detailed setup instructions
-- [API Documentation](docs/API.md) - API reference
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
-
-## Testing
-
-Run tests:
-
-```bash
+# Run tests
 pytest tests/
 ```
 
-Run with coverage:
+### Docker Commands
 
 ```bash
-pytest --cov=. --cov-report=html tests/
+# View logs
+docker-compose logs -f
+
+# Rebuild
+docker-compose up --build
+
+# Stop services
+docker-compose down
+
+# Clean up
+docker-compose down -v --rmi all
 ```
 
-## License
+## 📖 Documentation
+
+- [Docker Guide](README.docker.md) - Detailed Docker deployment guide
+- [Setup Guide](docs/SETUP.md) - Platform configuration
+- [API Documentation](docs/API.md) - API reference
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐      ┌─────────────────┐
+│   Web UI        │─────▶│   API Backend   │
+│   (Port 3000)   │      │   (Port 8000)   │
+│   Nginx/Static  │      │   FastAPI       │
+└─────────────────┘      └────────┬────────┘
+                                  │
+                         ┌────────┴────────┐
+                         │                 │
+                    ┌────▼────┐      ┌────▼────┐
+                    │ Review  │      │  Fix    │
+                    │ Agent   │      │  Agent  │
+                    └────┬────┘      └────┬────┘
+                         │                │
+                    ┌────▼────────────────▼────┐
+                    │  Platform Integrations   │
+                    │  GitHub/GitLab/Azure     │
+                    └──────────────────────────┘
+```
+
+## 🔧 Configuration
+
+### Required Environment Variables
+
+```bash
+# Platform Selection
+PLATFORM=github  # github, gitlab, or azure_devops
+
+# GitHub Example
+GITHUB_TOKEN=ghp_xxxxx
+GITHUB_REPOSITORY=owner/repo
+
+# LLM Provider
+LLM_PROVIDER=anthropic  # anthropic or azure_ai
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+# Optional Settings
+REVIEW_DEPTH=standard  # quick, standard, deep
+REVIEW_FOCUS=all      # all, security, performance, style, bugs
+FIX_AUTO_CREATE_PR=true
+```
+
+See `.env.example` for all options.
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest --cov=. --cov-report=html tests/
+
+# Test specific module
+pytest tests/test_config.py -v
+```
+
+## 📊 Features
+
+- ✅ **Multi-Platform**: GitHub, GitLab, Azure DevOps
+- ✅ **Multi-LLM**: Anthropic Claude, Azure OpenAI
+- ✅ **Smart Review**: Configurable depth and focus areas
+- ✅ **Auto-Fix**: Generate and apply fixes automatically
+- ✅ **Web UI**: Clean, modern interface
+- ✅ **REST API**: Programmatic access
+- ✅ **Docker**: Production-ready containers
+- ✅ **Tested**: Comprehensive test suite
+
+## 🤝 Contributing
+
+Contributions welcome! Please ensure:
+- Tests pass: `pytest tests/`
+- Code is formatted
+- Documentation is updated
+
+## 📝 License
 
 MIT License - see LICENSE file for details.
 
-## Support
+## 🆘 Support
 
-For issues and questions:
+For issues:
+- Check [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
+- View [API Documentation](docs/API.md)
 - Open an issue on GitHub
-- Check the [Troubleshooting Guide](docs/TROUBLESHOOTING.md)
-
-## Acknowledgments
-
-- Anthropic Claude API
-- Azure OpenAI Service
-- GitHub, GitLab, and Azure DevOps APIs

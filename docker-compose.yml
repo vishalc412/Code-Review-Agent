@@ -1,20 +1,43 @@
 version: '3.8'
 
 services:
-  review-agent:
-    build: .
-    container_name: code-review-agent
+  # API Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: code-review-api
+    ports:
+      - "8000:8000"
     env_file:
       - .env
+    environment:
+      - LOG_LEVEL=INFO
     volumes:
       - ./:/app
-    command: python -m agents.review_agent --pr-id ${PR_ID}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - code-review-network
 
-  fix-agent:
-    build: .
-    container_name: code-fix-agent
-    env_file:
-      - .env
-    volumes:
-      - ./:/app
-    command: python -m agents.fix_agent --pr-id ${PR_ID}
+  # Web UI
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: code-review-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - code-review-network
+
+networks:
+  code-review-network:
+    driver: bridge
