@@ -1,0 +1,34 @@
+# Core dependencies
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.0.0
+
+# API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Platform APIs
+azure-devops>=7.1.0b1
+python-gitlab>=4.4.0
+PyGithub>=2.1.1
+
+# LLM Clients
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Git operations
+GitPython>=3.1.40
+
+# Code parsing
+unidiff>=0.7.5
+
+# Utilities
+requests>=2.31.0
+click>=8.1.7
+
+# Testing
+pytest>=7.4.3
+pytest-cov>=4.1.0
+
+# Logging
+python-json-logger>=2.0.7

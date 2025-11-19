@@ -1,0 +1,86 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Review Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PLATFORM: github
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LLM_PROVIDER: anthropic
+          ANTHROPIC_MODEL: claude-sonnet-4-5-20250929
+          REVIEW_ENABLED: true
+          LOG_LEVEL: INFO
+        run: |
+          python -m agents.review_agent \
+            --pr-number ${{ github.event.pull_request.number }}
+
+  fix:
+    runs-on: ubuntu-latest
+    needs: review
+    if: github.event.action == 'opened' || github.event.action == 'reopened'
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Fix Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PLATFORM: github
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LLM_PROVIDER: anthropic
+          ANTHROPIC_MODEL: claude-sonnet-4-5-20250929
+          FIX_ENABLED: true
+          FIX_AUTO_CREATE_PR: true
+          LOG_LEVEL: INFO
+        run: |
+          python -m agents.fix_agent \
+            --pr-number ${{ github.event.pull_request.number }}

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Review Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-review {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-review:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-fix {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-fix:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result.success {
+            background: #e6fffa;
+            border: 2px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 2px solid #fc8181;
+            color: #742a2a;
+        }
+
+        .result.info {
+            background: #ebf8ff;
+            border: 2px solid #4299e1;
+            color: #2c5282;
+        }
+
+        .result h3 {
+            margin-bottom: 10px;
+        }
+
+        .result pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .config-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .config-info h4 {
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .config-item {
+            display: inline-block;
+            margin-right: 20px;
+            padding: 5px 10px;
+            background: white;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-healthy {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Code Review Agent</h1>
+            <p>AI-Powered Code Review & Auto-Fix</p>
+        </div>
+
+        <div class="card">
+            <div class="config-info" id="configInfo">
+                <h4>System Status <span class="status-badge status-healthy" id="statusBadge">Loading...</span></h4>
+                <div id="configDetails"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="prId">Pull Request ID / Number</label>
+                <input type="text" id="prId" placeholder="e.g., 123" required>
+            </div>
+
+            <div class="form-group">
+                <label for="platform">Platform (Optional Override)</label>
+                <select id="platform">
+                    <option value="">Use Default</option>
+                    <option value="github">GitHub</option>
+                    <option value="gitlab">GitLab</option>
+                    <option value="azure_devops">Azure DevOps</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="llmProvider">LLM Provider (Optional Override)</label>
+                <select id="llmProvider">
+                    <option value="">Use Default</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                    <option value="azure_ai">Azure OpenAI</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-review" onclick="runReview()">
+                    🔍 Run Review
+                </button>
+                <button class="btn-fix" onclick="runFix()">
+                    🔧 Generate Fixes
+                </button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px;">Processing...</p>
+            </div>
+
+            <div class="result" id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin.replace(':3000', ':8000');
+
+        // Load configuration on page load
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${API_URL}/api/config`);
+                const config = await response.json();
+
+                document.getElementById('statusBadge').textContent = 'Healthy';
+                document.getElementById('configDetails').innerHTML = `
+                    <span class="config-item"><strong>Platform:</strong> ${config.platform}</span>
+                    <span class="config-item"><strong>LLM:</strong> ${config.llm_provider}</span>
+                    <span class="config-item"><strong>Review:</strong> ${config.review_enabled ? 'Enabled' : 'Disabled'}</span>
+                    <span class="config-item"><strong>Fix:</strong> ${config.fix_enabled ? 'Enabled' : 'Disabled'}</span>
+                `;
+            } catch (error) {
+                document.getElementById('statusBadge').textContent = 'Error';
+                document.getElementById('statusBadge').className = 'status-badge';
+                document.getElementById('statusBadge').style.background = '#fed7d7';
+                document.getElementById('statusBadge').style.color = '#742a2a';
+                console.error('Failed to load config:', error);
+            }
+        }
+
+        async function runReview() {
+            const prId = document.getElementById('prId').value;
+            if (!prId) {
+                showResult('error', 'Error', 'Please enter a PR ID');
+                return;
+            }
+
+            const platform = document.getElementById('platform').value;
+            const llmProvider = document.getElementById('llmProvider').value;
+
+            const payload = { pr_id: prId };
+            if (platform) payload.platform = platform;
+            if (llmProvider) payload.llm_provider = llmProvider;
+
+            showLoading(true);
+            hideResult();
+
+            try {
+                const response = await fetch(`${API_URL}/api/review`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('success', '✅ Review Complete',
+                        `PR: ${data.pr_title || data.pr_id}\n` +
+                        `Files Reviewed: ${data.files_reviewed}\n` +
+                        `Issues Found: ${data.issues_found}\n` +
+                        `Comments Posted: ${data.comments_posted}\n` +
+                        `Tokens Used: ${data.tokens_used || 'N/A'}`
+                    );
+                } else {
+                    showResult('error', '❌ Review Failed', data.detail || 'Unknown error');
+                }
+            } catch (error) {
+                showResult('error', '❌ Request Failed', error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function runFix() {
+            const prId = document.getElementById('prId').value;
+            if (!prId) {
+                showResult('error', 'Error', 'Please enter a PR ID');
+                return;
+            }
+
+            const platform = document.getElementById('platform').value;
+            const llmProvider = document.getElementById('llmProvider').value;
+
+            const payload = { pr_id: prId };
+            if (platform) payload.platform = platform;
+            if (llmProvider) payload.llm_provider = llmProvider;
+
+            showLoading(true);
+            hideResult();
+
+            try {
+                const response = await fetch(`${API_URL}/api/fix`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    let message = `Original PR: ${data.original_pr_id}\n` +
+                                `Fixes Applied: ${data.fixes_applied}\n` +
+                                `Files Modified: ${data.files_modified}\n`;
+
+                    if (data.fix_pr_id) {
+                        message += `\nFix PR: #${data.fix_pr_id}\n` +
+                                  `URL: ${data.fix_pr_url}`;
+                    }
+
+                    if (data.message) {
+                        message += `\n\n${data.message}`;
+                    }
+
+                    showResult('success', '✅ Fix Complete', message);
+                } else {
+                    showResult('error', '❌ Fix Failed', data.detail || 'Unknown error');
+                }
+            } catch (error) {
+                showResult('error', '❌ Request Failed', error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.querySelectorAll('button').forEach(btn => btn.disabled = show);
+        }
+
+        function hideResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+
+        function showResult(type, title, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<h3>${title}</h3><pre>${message}</pre>`;
+            resultDiv.style.display = 'block';
+        }
+
+        // Load config on page load
+        loadConfig();
+    </script>
+</body>
+</html>
